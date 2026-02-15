@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>和峻/銘峰維修廠管理系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot, deleteDoc, addDoc, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDdqKHTz2ckF_ypu21BFwo6isudFFHIA5Y",
+            authDomain: "herhjun-2fcb2.firebaseapp.com",
+            projectId: "herhjun-2fcb2",
+            storageBucket: "herhjun-2fcb2.firebasestorage.app",
+            messagingSenderId: "1066457612802",
+            appId: "1:1066457612802:web:c5ce65067327b530c01d1b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const currentAppId = "herhjun-2fcb2";
+
+        const { createApp, ref, reactive, onMounted, computed, watch, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const ADMIN_PASSWORD_VAL = "888";
+                const TARGET_CATEGORY = "和峻/銘峰原廠"; 
+                const PRIORITY_NAME = "陳金堂"; 
+
+                const TAIWAN_DATA = {
+                    "臺北市": ["中正區", "大同區", "中山區", "萬華區", "信義區", "松山區", "大安區", "南港區", "北投區", "內湖區", "士林區", "文山區"],
+                    "新北市": ["板橋區", "三重區", "中和區", "永和區", "新莊區", "新店區", "土城區", "蘆洲區", "樹林區", "汐止區", "三峽區", "淡水區", "鶯歌區", "五股區", "泰山區", "林口區", "深坑區", "石碇區", "坪林區", "三芝區", "石門區", "八里區", "平溪區", "雙溪區", "貢寮區", "金山區", "萬里區", "烏來區", "瑞芳區"],
+                    "桃園市": ["桃園區", "中壢區", "平鎮區", "八德區", "楊梅區", "蘆竹區", "大溪區", "龍潭區", "龜山區", "大園區", "觀音區", "新屋區", "復興區"],
+                    "臺中市": ["中區", "東區", "南區", "西區", "北區", "北屯區", "西屯區", "南屯區", "太平區", "大里區", "霧峰區", "烏日區", "豐原區", "後里區", "石岡區", "東勢區", "和平區", "新社區", "潭子區", "大雅區", "神岡區", "大肚區", "沙鹿區", "龍井區", "梧棲區", "清水區", "大甲區", "外埔區", "大安區"],
+                    "臺南市": ["中西區", "東區", "南區", "北區", "安平區", "安南區", "永康區", "歸仁區", "新化區", "左鎮區", "玉井區", "楠西區", "南化區", "仁德區", "關廟區", "龍崎區", "官田區", "麻豆區", "佳里區", "西港區", "七股區", "將軍區", "學甲區", "北門區", "新營區", "後壁區", "白河區", "東山區", "六甲區", "下營區", "柳營區", "鹽水區", "善化區", "大內區", "山上區", "新市區", "安定區"],
+                    "高雄市": ["新興區", "前金區", "苓雅區", "鹽埕區", "鼓山區", "旗津區", "前鎮區", "三民區", "楠梓區", "小港區", "左營區", "仁武區", "大社區", "岡山區", "路竹區", "阿蓮區", "田寮區", "燕巢區", "橋頭區", "梓官區", "彌陀區", "永安區", "湖內區", "鳳山區", "大寮區", "林園區", "鳥松區", "大樹區", "旗山區", "美濃區", "六龜區", "內門區", "杉林區", "甲仙區", "桃源區", "那瑪夏區", "茂林區", "茄萣區"],
+                    "基隆市": ["仁愛區", "信義區", "中正區", "中山區", "安樂區", "暖暖區", "七堵區"],
+                    "新竹市": ["東區", "北區", "香山區"],
+                    "嘉義市": ["東區", "西區"],
+                    "新竹縣": ["竹北市", "竹東鎮", "新埔鎮", "關西鎮", "湖口鄉", "新豐鄉", "峨眉鄉", "寶山鄉", "北埔鄉", "芎林鄉", "橫山鄉", "尖石鄉", "五峰鄉"],
+                    "苗栗縣": ["苗栗市", "頭份市", "竹南鎮", "後龍鎮", "通霄鎮", "苑裡鎮", "卓蘭鎮", "造橋鄉", "西湖鄉", "頭屋鄉", "公館鄉", "銅鑼鄉", "三義鄉", "大湖鄉", "獅潭鄉", "三灣鄉", "南庄鄉", "泰安鄉"],
+                    "彰化縣": ["彰化市", "員林市", "和美鎮", "鹿港鎮", "溪湖鎮", "二林鎮", "田中鎮", "北斗鎮", "花壇鄉", "芬園鄉", "大村鄉", "永靖鄉", "伸港鄉", "線西鄉", "福興鄉", "秀水鄉", "埔心鄉", "埔鹽鄉", "大城鄉", "芳苑鄉", "竹塘鄉", "溪州鄉", "埤頭鄉", "二水鄉", "田尾鄉", "社頭鄉"],
+                    "南投縣": ["南投市", "埔里鎮", "草屯鎮", "竹山鎮", "集集鎮", "名間鄉", "鹿谷鄉", "中寮鄉", "魚池鄉", "國姓鄉", "水里鄉", "信義鄉", "仁愛鄉"],
+                    "雲林縣": ["斗六市", "斗南鎮", "虎尾鎮", "西螺鎮", "土庫鎮", "北港鎮", "古坑鄉", "大埤鄉", "莿桐鄉", "聯內鄉", "二崙鄉", "崙背鄉", "麥寮鄉", "東勢鄉", "褒忠鄉", "臺西鄉", "元長鄉", "四湖鄉", "口湖鄉", "水林鄉"],
+                    "嘉義縣": ["太保市", "朴子市", "布袋鎮", "大林鎮", "民雄鄉", "溪口鄉", "新港鄉", "六腳鄉", "東石鄉", "義竹鄉", "鹿草鄉", "水上鄉", "中埔鄉", "竹崎鄉", "梅山鄉", "番路鄉", "大埔鄉", "阿里山鄉"],
+                    "屏東縣": ["屏東市", "潮州鎮", "東港鎮", "恆春鎮", "萬丹鄉", "長治鄉", "麟洛鄉", "九如鄉", "里港鄉", "鹽埔鄉", "高樹鄉", "萬巒鄉", "內埔鄉", "竹田鄉", "新埤鄉", "枋寮鄉", "新園鄉", "崁頂鄉", "林邊鄉", "南州鄉", "佳冬鄉", "琉球鄉", "車城鄉", "滿州鄉", "枋山鄉", "三地門鄉", "霧臺鄉", "瑪家鄉", "泰武鄉", "來義鄉", "春日鄉", "獅子鄉", "牡丹鄉"],
+                    "宜蘭縣": ["宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉", "壯圍鄉", "員山鄉", "冬山鄉", "五結鄉", "三星鄉", "大同鄉", "南澳鄉"],
+                    "花蓮縣": ["花蓮市", "鳳林鎮", "玉里鎮", "新城鄉", "吉安鄉", "壽豐鄉", "光復鄉", "豐濱鄉", "瑞穗鄉", "富里鄉", "秀林鄉", "萬榮鄉", "卓溪鄉"],
+                    "臺東縣": ["臺東市", "成功鎮", "關山鎮", "卑名鄉", "鹿野鄉", "池上鄉", "東河鄉", "長濱鄉", "太麻里鄉", "大武鄉", "綠島鄉", "海端鄉", "延平鄉", "金峰鄉", "達仁鄉", "蘭嶼鄉"],
+                    "澎湖縣": ["馬公市", "湖西鄉", "白沙鄉", "西嶼鄉", "望安鄉", "七美鄉"],
+                    "金門縣": ["金城鎮", "金湖鎮", "金沙鎮", "金寧鄉", "烈嶼鄉", "烏坵鄉"],
+                    "連江縣": ["南竿鄉", "北竿鄉", "莒光鄉", "東引鄉"]
+                };
+
+                const MAP_PATHS = [
+                    { id: "基隆市", d: "M435.5,54.7c1.7,0.1,3.4-0.1,5.1-0.2c2.1-0.2,4.1-1.1,5.5-2.7c0.8-0.9,0.9-2.3,0.3-3.3c-1.1-1.8-3.4-1.6-4.9-0.2c-0.9,0.8-1.5,1.9-1.9,3C438.3,52.8,437,54,435.5,54.7z", color: "#D1D5DB" },
+                    { id: "臺北市", d: "M416.3,64.2c2.8,4.1,8.3,4.9,12,1.8c2.8-2.3,3.7-6.2,2.2-9.4c-1.8-3.7-6.7-5.2-10-2.8c-2.4,1.8-3.3,4.8-2.2,7.6L416.3,64.2z", color: "#E5E7EB" },
+                    { id: "新北市", d: "M420.3,37.3c-11.3-4.1-23.7,1.8-27.9,13.1c-1.4,3.7-1.5,7.7-0.4,11.5c1.9,6.7,6.4,12.3,12.4,15.7c1.5,0.8,3.2,1.3,4.9,1.5c4.7,0.4,9.4-1.1,13-4.1c4.5-3.8,6.8-9.8,5.9-15.7c-0.6-3.8-2.5-7.3-5.2-10C422.3,38.6,421.3,37.9,420.3,37.3z M446.7,46.1c-1.6-4.9-6.4-8.1-11.4-7.5c-4.4,0.5-8.1,3.7-9.3,8c-1.6,5.3,1.5,10.9,6.8,12.5c4.1,1.2,8.6-0.6,10.7-4.4C444.6,52.7,445.5,50.1,446.7,46.1z M465.1,64.9c-4-8.8-14.1-12.7-22.9-8.7c-4.8,2.2-8.3,6.4-9.6,11.5c-1.9,7.4,1.5,15.1,8.2,18.3c1.9,0.9,3.9,1.4,6,1.4c13,0,21-13,18.3-22.5L465.1,64.9z", color: "#9CA3AF" },
+                    { id: "桃園市", d: "M380.5,57.1c-3.1,1.8-5.3,4.9-6.1,8.4c-1,4.5,0.6,9.2,4.3,11.8c4.2,3,9.9,2,12.9-2.2c1.9-2.7,2.5-6.1,1.5-9.3c-1.2-3.8-4.5-6.6-8.4-7.4C383.1,58.2,381.5,57.7,380.5,57.1z M367.6,71.2c-5.4,3.3-8.8,9.1-8.9,15.4c-0.1,11,8.8,19.9,19.8,20c6.2,0,12.1-2.9,15.7-7.9c4.2-5.7,4.5-13.4,0.9-19.5C388.9,69,377.2,65.2,367.6,71.2z", color: "#D1D5DB" },
+                    { id: "新竹市", d: "M347,112c-4.4,0-8,3.6-8,8s3.6,8,8,8s8-3.6,8-8S351.4,112,347,112z", color: "#F3F4F6" },
+                    { id: "新竹縣", d: "M358.4,103.5c-4.2-2.1-9.2-1.3-12.6,2.1c-3.7,3.6-4.5,9.2-2,13.7c3,5.4,9.9,7.4,15.3,4.3c4.8-2.7,6.9-8.5,4.9-13.7C363,107,361.1,104.9,358.4,103.5z M384.3,110.1c-6.2-1.6-12.7,0.7-16.1,5.8c-3.7,5.5-3.3,13,0.9,18.1c4.5,5.5,12.5,6.3,18,1.8c4.7-3.8,6.2-10.1,3.8-15.6C390,114,387.6,111.4,384.3,110.1z", color: "#E5E7EB" },
+                    { id: "苗栗縣", d: "M328.7,135.2c-8.9-3.7-19.1,0.4-22.8,9.3c-1.9,4.6-1.9,9.8,0.1,14.4c3,6.8,9.4,11.5,16.8,12.3c3.4,0.4,6.8-0.3,9.8-2.1c6.5-3.8,9.3-11.9,6.7-18.9C337.8,145.4,333.9,139.6,328.7,135.2z M353.4,142.1c-5.1-3.6-12.2-2.5-15.8,2.6c-2.4,3.4-2.6,7.8-0.6,11.5c2.6,4.9,8.5,7.1,13.5,5c4.1-1.7,6.8-5.8,6.7-10.3C357.2,147.4,355.8,144.1,353.4,142.1z", color: "#D1D5DB" },
+                    { id: "臺中市", d: "M290.4,181.2c-12,3.3-19.1,15.7-15.8,27.7c1.4,5,4.6,9.2,8.9,12c8.9,5.7,20.8,2.9,26.5-6.1c3.2-5.1,3.8-11.3,1.7-16.9C308.8,189.6,300.5,178.4,290.4,181.2z M351.4,194.2c-15.1-11.8-37.1-9-48.8,6.1c-7.4,9.5-8.5,22.6-3,33.1c7.3,14,24.7,19.3,38.7,12c8.4-4,14.2-12.4,14.4-22.3C353.4,213,353.1,202.7,351.4,194.2z", color: "#9CA3AF" },
+                    { id: "彰化縣", d: "M248.7,235.2c-6.8-1.5-13.8,1.4-17.1,7.6c-3.3,6.2-2.1,13.8,2.9,18.7c6.1,6.1,16,6.1,22.1,0c4.7-4.7,6.1-11.7,3.5-17.8C258,238.8,253.8,235.8,248.7,235.2z", color: "#F3F4F6" },
+                    { id: "南投縣", d: "M303.4,264.2c-18.3-16.5-46.6-14.8-63.1,3.5c-11,12.2-13.8,29.8-7.1,44.9c1.9,4.2,4.6,8,8,11.1c11,10.1,27.7,10.8,39.6,1.8c8.2-6.2,12.9-15.8,13.1-26c0.1-11.3-4.1-22.1-11.4-30.2C290.2,267.3,296.8,265.8,303.4,264.2z M342.3,278.4c-13-14.4-34.9-15.7-49.4-2.7c-9.1,8.1-12.3,21.1-7.8,32.1c5.9,14.4,22.3,21.3,36.7,15.4c8.4-3.4,14.5-11,16.5-19.9C351.4,293.4,348.5,284.1,342.3,278.4z", color: "#BCB8B1" },
+                    { id: "雲林縣", d: "M218.4,285.2c-9.5-3.4-19.9,1.4-23.3,10.9c-2.3,6.3-0.7,13.4,4.1,18.1c6.5,6.5,17,6.5,23.5,0c4.7-4.7,6.1-11.7,3.6-17.8C224.2,290.5,221.7,286.9,218.4,285.2z", color: "#E5E7EB" },
+                    { id: "嘉義市", d: "M235,320c-3.3,0-6,2.7-6,6s2.7,6,6,6s6-2.7,6-6S238.3,320,235,320z", color: "#F3F4F6" },
+                    { id: "嘉義縣", d: "M210.4,332.2c-13,2.2-21.7,14.6-19.5,27.7c1.3,8.1,7,14.6,14.7,16.9c13.1,3.9,27-3.4,31-16.5c2.1-7,0.4-14.7-4.5-20.1C226.2,334.4,218.4,330.9,210.4,332.2z M265.7,344.1c-12-7.1-27.7-3-34.8,9.1c-4.4,7.6-4.5,16.9-0.2,24.6c6.6,11.8,21.6,16,33.3,9.5c6.5-3.6,11.1-10.2,12.6-17.7C278.4,358.4,274.5,349.3,265.7,344.1z", color: "#D1D5DB" },
+                    { id: "臺南市", d: "M195.4,385.2c-15.1,1.8-25.7,15.4-23.9,30.5c1.1,9.4,7.6,17.2,16.6,20c15.1,4.7,30.9-3.9,35.6-19c2.3-7.5,0.7-15.8-4.2-21.8C213,387.8,204.4,384.2,195.4,385.2z M240.3,398.4c-11-9.5-27.7-8.3-37.2,2.7c-6.1,7.1-7.1,17.2-2.8,25.4c6.3,12,21.1,16.5,33.1,10.2c6.5-3.4,11.3-9.9,12.8-17C248,410.1,245.5,402.9,240.3,398.4z", color: "#E5E7EB" },
+                    { id: "高雄市", d: "M230.4,450.2c-12-6.5-27.3-1.8-33.8,10.2c-3.6,6.6-3.4,14.7,0.5,21.2c6.6,11,21,14.4,32,7.8c6.4-3.8,10.5-10.7,10.8-18.1C240.2,462.8,236.4,454.6,230.4,450.2z M285.4,435.1c-16-16-41.9-16-57.9,0c-11,11-13.8,27.5-7.1,41.4c6.5,13.5,22.8,19,36.3,12.5c8.4-4,14.2-12.4,15.1-21.7C272.8,455.5,278.4,443.4,285.4,435.1z M302.3,478.4c-11-12-30.1-13.1-42.1-2.1c-8.4,7.7-11.4,19.6-7.8,30.5c4.7,14,19.9,21.2,33.9,16.5c8.2-2.7,14.5-9.4,16.8-17.8C305.4,495,305.1,484.7,302.3,478.4z", color: "#BCB8B1" },
+                    { id: "屏東縣", d: "M265.4,540.2c-15.1,1.8-25.7,15.4-23.9,30.5c1.1,9.4,7.6,17.2,16.6,20c15.1,4.7,30.9-3.9,35.6-19c2.3-7.5,0.7-15.8-4.2-21.8C283,542.8,274.4,539.2,265.4,540.2z M275.4,590.2c-5,0-9,4-9,9s4,9,9,9s9-4,9-9S280.4,590.2,275.4,590.2z", color: "#D1D5DB" },
+                    { id: "宜蘭縣", d: "M430.4,105.2c-15.1-6.1-32.3,1.1-38.4,16.2c-4,9.9-1.9,21.3,5.4,29.1c9.9,10.5,26.4,11.1,36.9,1.2c7.4-7,10.6-17.5,8.4-27.4C441,114.3,436.5,108.3,430.4,105.2z", color: "#F3F4F6" },
+                    { id: "花蓮縣", d: "M385.4,185.2c-18.3-9.5-41.1-2.2-50.6,16.1c-6.1,11.8-5,26.1,2.8,36.9c10.5,14.4,30.8,17.2,45.2,6.7c10.1-7.4,15.4-19.8,13.6-32.2C394.8,201,391,192.3,385.4,185.2z M372.4,285.2c-16-16-41.9-16-57.9,0c-11,11-13.8,27.5-7.1,41.4c6.5,13.5,22.8,19,36.3,12.5c8.4-4,14.2-12.4,15.1-21.7C359.8,305.5,365.4,293.4,372.4,285.2z", color: "#BCB8B1" },
+                    { id: "臺東縣", d: "M335.4,385.2c-16-16-41.9-16-57.9,0c-11,11-13.8,27.5-7.1,41.4c6.5,13.5,22.8,19,36.3,12.5c8.4-4,14.2-12.4,15.1-21.7C322.8,405.5,328.4,393.4,335.4,385.2z M315.4,490.2c-11-11-28.8-11-39.8,0c-7.4,7.4-9.2,18.5-4.5,27.8c5.4,10.6,18.6,14.9,29.2,9.5c6.5-3.3,11.3-9.7,12.8-17C314.8,502.8,315.1,495.8,315.4,490.2z", color: "#E5E7EB" },
+                    { id: "澎湖縣", d: "M100,320c-5,0-9,4-9,9s4,9,9,9s9-4,9-9S105,320,100,320z", color: "#D1D5DB" },
+                    { id: "金門縣", d: "M60,180c-5,0-9,4-9,9s4,9,9,9s9-4,9-9S65,180,60,180z", color: "#9CA3AF" },
+                    { id: "連江縣", d: "M150,50c-5,0-9,4-9,9s4,9,9,9s9-4,9-9S155,50,150,50z", color: "#E5E7EB" }
+                ];
+
+                const user = ref(null);
+                const cards = ref([]);
+                const selectedRegion = ref(null);
+                const hoveredRegion = ref(null);
+                const searchTerm = ref("");
+                const isModalOpen = ref(false);
+                const isFullListModalOpen = ref(false);
+                const isAuthModal = ref(false);
+                const passwordInput = ref("");
+                const syncStatus = ref("connecting");
+                const viewingCard = ref(null);
+                const editingCard = ref(null);
+                const authPurpose = ref(null);
+                const categoryList = ref(["車體廠", "吊桿夾子維修廠", "汽車維修廠", TARGET_CATEGORY, "其他"]);
+                const isCategoryManageMode = ref(false);
+                const newCategoryName = ref("");
+
+                const formData = reactive({
+                    name: "", company: "", companyTaxId: "", taxId: "", title: "", phone: "", phone2: "", mobile: "", fax: "", email: "", 
+                    city: "臺北市", township: "中正區", address: "", needsAppointment: false, notes: "", image: null, categories: []
+                });
+
+                const refreshIcons = () => {
+                    nextTick(() => {
+                        setTimeout(() => {
+                            if (window.lucide) window.lucide.createIcons();
+                        }, 100);
+                    });
+                };
+
+                onMounted(() => {
+                    const initAuth = async () => {
+                        try {
+                            await signInAnonymously(auth);
+                        } catch (err) { syncStatus.value = "error"; }
+                    };
+                    initAuth();
+                    onAuthStateChanged(auth, (u) => {
+                        user.value = u;
+                        if (u) {
+                            syncStatus.value = "synced";
+                            fetchData();
+                        }
+                    });
+                    refreshIcons();
+                });
+
+                watch(isModalOpen, (val) => val && refreshIcons());
+                watch(viewingCard, (val) => val && refreshIcons());
+                watch(isFullListModalOpen, (val) => val && refreshIcons());
+
+                const fetchData = () => {
+                    if (!user.value) return;
+                    syncStatus.value = "syncing";
+                    const cardsCol = collection(db, 'artifacts', currentAppId, 'public', 'data', 'cards');
+                    onSnapshot(cardsCol, (snapshot) => {
+                        cards.value = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+                        syncStatus.value = "synced";
+                    }, (err) => { 
+                        console.error("Firebase Sync Error:", err);
+                        syncStatus.value = "error"; 
+                    });
+
+                    const settingsDoc = doc(db, 'artifacts', currentAppId, 'public', 'data', 'settings', 'categories');
+                    onSnapshot(settingsDoc, (docSnap) => {
+                        if (docSnap.exists()) categoryList.value = docSnap.data().list || [];
+                    });
+                };
+
+                const filteredCards = computed(() => {
+                    let result = cards.value.filter(card => {
+                        const name = String(card.name || "").toLowerCase();
+                        const company = String(card.company || "").toLowerCase();
+                        const s = searchTerm.value.toLowerCase();
+                        return name.includes(s) || company.includes(s);
+                    });
+                    
+                    const activeRegion = hoveredRegion.value || selectedRegion.value;
+                    if (activeRegion) {
+                        result = result.filter(card => card.city === activeRegion);
+                    }
+
+                    return result.sort((a, b) => {
+                        const nameA = a.name || "";
+                        const nameB = b.name || "";
+
+                        if (nameA === PRIORITY_NAME && nameB !== PRIORITY_NAME) return -1;
+                        if (nameA !== PRIORITY_NAME && nameB === PRIORITY_NAME) return 1;
+
+                        const aIsOriginal = a.categories?.includes(TARGET_CATEGORY);
+                        const bIsOriginal = b.categories?.includes(TARGET_CATEGORY);
+                        
+                        if (aIsOriginal && !bIsOriginal) return -1;
+                        if (!aIsOriginal && bIsOriginal) return 1;
+                        
+                        const cityCompare = (a.city || "").localeCompare(b.city || "", 'zh-Hant');
+                        if (cityCompare !== 0) return cityCompare;
+                        
+                        return (b.createdAt || 0) - (a.createdAt || 0);
+                    });
+                });
+
+                const groupedCardsByCity = computed(() => {
+                    const groups = {};
+                    const priorityCards = []; 
+                    const originalCards = []; 
+
+                    cards.value.forEach(card => {
+                        if (card.name === PRIORITY_NAME) {
+                            priorityCards.push(card);
+                        } else if (card.categories?.includes(TARGET_CATEGORY)) {
+                            originalCards.push(card);
+                        } else {
+                            const city = card.city || "未分類";
+                            if (!groups[city]) groups[city] = [];
+                            groups[city].push(card);
+                        }
+                    });
+
+                    const sortedCities = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'zh-Hant'));
+                    const sortedGroups = {};
+                    
+                    if (priorityCards.length > 0) {
+                        sortedGroups["特別指定置頂"] = priorityCards;
+                    }
+
+                    if (originalCards.length > 0) {
+                        sortedGroups["和峻/銘峰 原廠直營"] = originalCards.sort((a, b) => (a.city || "").localeCompare(b.city || "", 'zh-Hant'));
+                    }
+                    
+                    sortedCities.forEach(city => {
+                        sortedGroups[city] = groups[city].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    });
+
+                    return sortedGroups;
+                });
+
+                const getFullDisplayAddress = (card) => {
+                    const city = String(card.city || "");
+                    const township = String(card.township || "");
+                    const addr = String(card.address || "");
+                    if (addr.startsWith(city) || addr.includes(township)) return addr;
+                    return `${city}${township}${addr}`;
+                };
+
+                const openGoogleMaps = (card) => {
+                    const fullAddr = getFullDisplayAddress(card);
+                    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddr)}`;
+                    window.open(url, '_blank');
+                };
+
+                const handleVerifyPassword = (e) => {
+                    if (passwordInput.value === ADMIN_PASSWORD_VAL) {
+                        if (authPurpose.value === 'export') {
+                            performExport();
+                            closeModal();
+                        } else if (authPurpose.value === 'sync') {
+                            fetchData();
+                            closeModal();
+                        } else {
+                            isAuthModal.value = false;
+                        }
+                    } else {
+                        alert("密碼錯誤");
+                    }
+                    passwordInput.value = "";
+                };
+
+                const handleSubmit = async () => {
+                    if (!user.value) return;
+                    syncStatus.value = "syncing";
+                    try {
+                        const data = { ...formData, updatedAt: Date.now() };
+                        if (editingCard.value) {
+                            const cardRef = doc(db, 'artifacts', currentAppId, 'public', 'data', 'cards', editingCard.value.id);
+                            await setDoc(cardRef, data);
+                        } else {
+                            const cardsCol = collection(db, 'artifacts', currentAppId, 'public', 'data', 'cards');
+                            await addDoc(cardsCol, { ...data, createdAt: Date.now(), date: new Date().toLocaleDateString() });
+                        }
+                        closeModal();
+                    } catch (err) { syncStatus.value = "error"; }
+                };
+
+                const openModal = (card = null) => {
+                    if (card) {
+                        editingCard.value = card;
+                        Object.assign(formData, card);
+                    } else {
+                        editingCard.value = null;
+                        Object.assign(formData, { 
+                            name: "", company: "", companyTaxId: "", taxId: "", title: "", phone: "", phone2: "", mobile: "", fax: "", email: "", 
+                            city: "臺北市", township: "中正區", address: "", needsAppointment: false, notes: "", image: null, categories: []
+                        });
+                    }
+                    authPurpose.value = 'form';
+                    isModalOpen.value = true;
+                    isAuthModal.value = true;
+                };
+
+                const closeModal = () => {
+                    isModalOpen.value = false;
+                    editingCard.value = null;
+                    isAuthModal.value = false;
+                    passwordInput.value = "";
+                };
+
+                const handleDeleteCard = async (id) => {
+                    const pw = prompt("請輸入管理密碼以刪除此紀錄：");
+                    if (pw === ADMIN_PASSWORD_VAL) {
+                        try {
+                            await deleteDoc(doc(db, 'artifacts', currentAppId, 'public', 'data', 'cards', id));
+                            viewingCard.value = null;
+                        } catch (err) { syncStatus.value = "error"; }
+                    }
+                };
+
+                const handleImageUpload = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        if (file.size > 1024 * 1024) {
+                            alert("檔案過大，請勿超過 1MB");
+                            return;
+                        }
+                        const reader = new FileReader();
+                        reader.onloadend = () => formData.image = reader.result;
+                        reader.readAsDataURL(file);
+                    }
+                };
+
+                const performExport = () => {
+                    const header = ["姓名", "單位", "公司統編", "統一編號", "職銜", "電話 1", "電話 2", "手機", "傳真", "Email", "地址", "分類"];
+                    const rows = cards.value.map(c => [
+                        c.name, c.company, c.companyTaxId, c.taxId, c.title, c.phone, c.phone2, c.mobile, c.fax, c.email,
+                        getFullDisplayAddress(c), (c.categories || []).join("/")
+                    ]);
+                    const csvContent = "\uFEFF" + [header, ...rows].map(e => e.map(val => `"${val}"`).join(",")).join("\n");
+                    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `和峻銘峰_備份_${new Date().toISOString().slice(0,10)}.csv`;
+                    link.click();
+                };
+
+                const toggleCategory = (cat) => {
+                    const idx = formData.categories.indexOf(cat);
+                    if (idx > -1) formData.categories.splice(idx, 1);
+                    else formData.categories.push(cat);
+                };
+
+                return {
+                    TAIWAN_DATA, MAP_PATHS, user, cards, selectedRegion, hoveredRegion, searchTerm, isModalOpen, isFullListModalOpen,
+                    isAuthModal, passwordInput, syncStatus, viewingCard, editingCard, formData, categoryList, isCategoryManageMode,
+                    newCategoryName, filteredCards, groupedCardsByCity, openGoogleMaps, handleVerifyPassword, handleSubmit,
+                    openModal, closeModal, handleDeleteCard, handleImageUpload, performExport, fetchData, toggleCategory, getFullDisplayAddress,
+                    TARGET_CATEGORY, PRIORITY_NAME
+                }
+            }
+        }).mount('#app');
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #FAF9F6; color: #4A4A4A; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #BCA38E; }
+        .card-shadow { box-shadow: 0 10px 40px -10px rgba(166, 139, 119, 0.15); }
+        svg path { outline: none !important; transition: all 0.3s ease; }
+        .map-container { max-height: 550px; }
+        [data-lucide] { display: inline-block; vertical-align: middle; }
+        .detail-card { animation: slideUp 0.4s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .spin-anim { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen p-4 md:p-8">
+        <div class="max-w-7xl mx-auto">
+            
+            <!-- Header -->
+            <header class="mb-6 flex flex-col md:flex-row justify-between items-end gap-4 border-b-2 border-dashed border-[#BCA38E]/30 pb-6">
+                <div>
+                    <h1 class="text-3xl md:text-5xl font-black text-[#8B7E66] flex items-center gap-4">
+                        <span class="py-1.5 px-3 bg-[#A68B77] text-white rounded-2xl shadow-lg flex items-center justify-center"><i data-lucide="wrench"></i></span>
+                        和峻/銘峰維修廠
+                    </h1>
+                </div>
+                <div class="flex flex-wrap gap-2 w-full md:w-auto items-center">
+                    <div class="relative flex-grow md:w-64">
+                        <input v-model="searchTerm" type="text" placeholder="搜尋維修廠..." class="pl-4 pr-4 py-2.5 rounded-full border-2 border-[#BCA38E]/20 bg-white/60 focus:bg-white outline-none w-full text-sm shadow-sm transition-all focus:border-[#A68B77]">
+                    </div>
+                    
+                    <button @click="fetchData()" class="bg-white border-2 border-[#BCA38E]/30 text-[#A68B77] w-12 h-12 rounded-full flex items-center justify-center shadow-sm hover:bg-stone-50 transition-all transform active:scale-90 group" title="雲端即時同步最新資料">
+                        <i data-lucide="refresh-cw" :class="['w-5 h-5', syncStatus === 'syncing' ? 'spin-anim' : 'group-hover:rotate-180 transition-transform duration-500']"></i>
+                    </button>
+
+                    <button @click="performExport()" class="bg-white border-2 border-[#BCA38E]/30 text-[#8B7E66] px-5 py-2.5 rounded-full font-bold text-sm shadow-sm hover:bg-stone-50 transition-all flex items-center gap-2" title="匯出 CSV 備份">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> 備份匯出
+                    </button>
+
+                    <button @click="openModal()" class="bg-[#A68B77] hover:bg-[#8B7E66] text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg transform active:scale-95 transition-all">
+                        <i data-lucide="plus"></i>
+                    </button>
+                    
+                    <button @click="isFullListModalOpen = true" class="bg-white border-2 border-[#BCA38E]/30 text-[#8B7E66] px-5 py-2.5 rounded-full font-bold text-sm shadow-sm hover:bg-stone-50 transition-all flex items-center gap-2">
+                        <i data-lucide="list" class="w-4 h-4"></i> 全台清單
+                    </button>
+                </div>
+            </header>
+
+            <!-- Sync Bar -->
+            <div class="mb-6 flex items-center justify-center gap-4 text-[10px] font-bold tracking-widest uppercase">
+                <div v-if="syncStatus === 'synced'" class="flex items-center gap-2 text-stone-400">
+                    <span class="w-2 h-2 rounded-full bg-green-400"></span> 雲端連線中
+                </div>
+                <div v-if="syncStatus === 'syncing'" class="flex items-center gap-2 text-blue-500 animate-pulse">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> 資料同步中
+                </div>
+                <div v-if="selectedRegion || hoveredRegion" class="bg-[#BCA38E]/20 text-[#8B7E66] px-4 py-1.5 rounded-full flex items-center gap-2 shadow-sm transition-all duration-300">
+                    區域：{{ hoveredRegion || selectedRegion }} 
+                    <span v-if="selectedRegion && !hoveredRegion" @click="selectedRegion = null" class="ml-1 cursor-pointer hover:text-red-500">×</span>
+                </div>
+            </div>
+
+            <!-- Main Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                
+                <!-- Map Area -->
+                <div class="lg:col-span-5 flex flex-col items-center">
+                    <div class="bg-white p-8 rounded-[3.5rem] card-shadow border-4 border-white w-full relative overflow-hidden">
+                        <div class="mb-4 flex items-center justify-between relative z-10">
+                            <h2 class="font-bold text-lg text-[#8B7E66] flex items-center gap-2">
+                                <i data-lucide="map-pin" class="w-4 h-4"></i> 全台據點分佈
+                            </h2>
+                            <span v-if="hoveredRegion" class="text-xs text-[#A68B77] font-black bg-stone-50 px-3 py-1 rounded-full shadow-sm border border-stone-100 animate-pulse">{{ hoveredRegion }}</span>
+                        </div>
+                        <div class="map-container aspect-[2/3] relative z-10">
+                            <svg viewBox="0 0 600 650" class="w-full h-full">
+                                <path v-for="p in MAP_PATHS" :key="p.id" :d="p.d" 
+                                    :fill="selectedRegion === p.id ? '#A68B77' : (hoveredRegion === p.id ? '#D6CFC7' : p.color)"
+                                    stroke="#FFFFFF" stroke-width="2.5" class="cursor-pointer hover:brightness-105"
+                                    @mouseenter="hoveredRegion = p.id" @mouseleave="hoveredRegion = null"
+                                    @click="selectedRegion = (selectedRegion === p.id ? null : p.id)" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List / Detail Area -->
+                <div class="lg:col-span-7">
+                    
+                    <!-- Detail View (名片詳情) -->
+                    <div v-if="viewingCard" class="bg-white rounded-[3rem] shadow-2xl border border-stone-100 overflow-hidden detail-card">
+                        <div class="p-5 bg-white border-b border-stone-50 flex justify-between items-center">
+                            <button @click="viewingCard = null" class="text-sm font-bold text-[#8B7E66] flex items-center gap-2 hover:text-[#A68B77] group px-4 py-2 bg-[#FAF9F6] rounded-full transition-all">
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i> 返回清單
+                            </button>
+                            <div class="flex gap-2">
+                                <button @click="openModal(viewingCard)" class="text-[#BCA38E] hover:text-[#8B7E66] transition p-2 bg-[#FAF9F6] rounded-full shadow-sm"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                                <button @click="handleDeleteCard(viewingCard.id)" class="text-red-300 hover:text-red-500 transition p-2 bg-[#FAF9F6] rounded-full shadow-sm"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                        
+                        <div class="p-8 md:p-10">
+                            <div class="flex flex-col md:flex-row gap-10">
+                                <!-- 左側影像 -->
+                                <div class="w-full md:w-5/12 flex flex-col items-center">
+                                    <div v-if="viewingCard.image" class="rounded-2xl overflow-hidden shadow-xl border-4 border-white bg-white">
+                                        <img :src="viewingCard.image" class="w-full h-auto rounded-lg">
+                                    </div>
+                                    <div v-else class="aspect-[3/2] w-full bg-stone-50 rounded-2xl flex flex-col items-center justify-center text-stone-200 border border-stone-100">
+                                        <i data-lucide="image" class="w-12 h-12 mb-3"></i>
+                                        <span class="italic text-[11px] font-bold">無影像檔案</span>
+                                    </div>
+                                    <div class="mt-6 flex flex-col items-center">
+                                        <div class="text-[9px] text-stone-400 font-mono tracking-tighter bg-stone-50 px-3 py-1 rounded-full border border-stone-100 uppercase">DATABASE_ID: {{viewingCard.id?.slice(0,10)}}</div>
+                                        <div class="mt-2 text-[10px] text-[#A68B77] font-bold italic">存檔日期: {{viewingCard.date || '---'}}</div>
+                                    </div>
+                                </div>
+
+                                <!-- 右側資訊 (核心優化：單欄卡片設計 + 職稱呈現) -->
+                                <div class="w-full md:w-7/12 space-y-6">
+                                    <div>
+                                        <div class="flex flex-wrap gap-2 mb-3">
+                                            <span class="text-[10px] px-2.5 py-1 bg-stone-100 text-stone-500 rounded-lg font-bold">{{viewingCard.township}}</span>
+                                            <span v-if="viewingCard.needsAppointment" class="text-[10px] px-2.5 py-1 bg-orange-50 text-orange-600 rounded-lg font-bold border border-orange-100 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> 需預約</span>
+                                            <span v-for="c in viewingCard.categories" :key="c" class="text-[10px] px-2.5 py-1 bg-[#A68B77]/10 text-[#A68B77] rounded-lg font-bold">{{c}}</span>
+                                        </div>
+                                        <h3 class="text-4xl font-black text-[#4A4A4A] tracking-tighter mb-2">{{ viewingCard.name }}</h3>
+                                        <div class="flex items-center gap-2">
+                                            <i data-lucide="building-2" class="w-5 h-5 text-[#BCA38E]"></i>
+                                            <p class="text-lg font-bold text-[#8B7E66]">{{ viewingCard.company || '個人經營' }}</p>
+                                            <span v-if="viewingCard.title" class="flex items-center gap-2 text-stone-300 font-normal">
+                                                <span>|</span>
+                                                <i data-lucide="briefcase" class="w-3.5 h-3.5 opacity-50"></i>
+                                                <span class="text-sm font-medium text-stone-400">{{viewingCard.title}}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="p-5 bg-[#FAF9F6] rounded-3xl border border-stone-100 flex items-center gap-4 shadow-sm group hover:bg-white transition-all">
+                                        <div class="bg-white p-3 rounded-2xl text-[#A68B77] border border-stone-100 shadow-sm"><i data-lucide="map-pin" class="w-6 h-6"></i></div>
+                                        <div class="flex-grow">
+                                            <p class="text-[9px] text-[#BCA38E] font-black uppercase tracking-widest mb-1">完整營業地址</p>
+                                            <p class="text-sm font-bold text-[#4A4A4A] leading-tight">{{ getFullDisplayAddress(viewingCard) }}</p>
+                                        </div>
+                                        <button @click="openGoogleMaps(viewingCard)" class="bg-[#A68B77] text-white p-3 rounded-2xl shadow-xl hover:bg-[#8B7E66] transition-all transform active:scale-90 flex items-center justify-center">
+                                            <i data-lucide="navigation" class="w-5 h-5"></i>
+                                        </button>
+                                    </div>
+
+                                    <!-- 已優化：聯絡電話塊統一單欄排版 + 深灰色數字 + 完整顯示不截斷 + 字體同步 -->
+                                    <div class="space-y-4 border-t border-stone-100 pt-5">
+                                        <div v-if="viewingCard.phone" class="p-4 bg-[#FAF9F6] rounded-2xl border border-stone-100 flex items-center gap-4 shadow-sm">
+                                            <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#BCA38E] flex-shrink-0"><i data-lucide="phone" class="w-5 h-5"></i></div>
+                                            <div class="min-w-0">
+                                                <p class="text-[9px] text-[#8B7E66] font-black uppercase tracking-widest mb-0.5">公司電話 1</p>
+                                                <p class="font-black text-lg text-[#4B5563] break-all leading-none">{{ viewingCard.phone }}</p>
+                                            </div>
+                                        </div>
+                                        <div v-if="viewingCard.mobile" class="p-4 bg-[#FAF9F6] rounded-2xl border border-stone-100 flex items-center gap-4 shadow-sm">
+                                            <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#BCA38E] flex-shrink-0"><i data-lucide="smartphone" class="w-5 h-5"></i></div>
+                                            <div class="min-w-0">
+                                                <p class="text-[9px] text-[#8B7E66] font-black uppercase tracking-widest mb-0.5">手機號碼</p>
+                                                <p class="font-black text-lg text-[#4B5563] break-all leading-none">{{ viewingCard.mobile }}</p>
+                                            </div>
+                                        </div>
+                                        <div v-if="viewingCard.fax" class="p-4 bg-[#FAF9F6] rounded-2xl border border-stone-100 flex items-center gap-4 shadow-sm">
+                                            <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#BCA38E] flex-shrink-0"><i data-lucide="printer" class="w-5 h-5"></i></div>
+                                            <div class="min-w-0">
+                                                <p class="text-[9px] text-[#8B7E66] font-black uppercase tracking-widest mb-0.5">傳真號碼</p>
+                                                <p class="font-black text-lg text-[#4B5563] break-all leading-none">{{ viewingCard.fax }}</p>
+                                            </div>
+                                        </div>
+                                        <div v-if="viewingCard.phone2" class="p-4 bg-[#FAF9F6] rounded-2xl border border-stone-100 flex items-center gap-4 shadow-sm">
+                                            <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#BCA38E] flex-shrink-0"><i data-lucide="phone" class="w-5 h-5"></i></div>
+                                            <div class="min-w-0">
+                                                <p class="text-[9px] text-[#8B7E66] font-black uppercase tracking-widest mb-0.5">備用電話 2</p>
+                                                <p class="font-black text-lg text-[#4B5563] break-all leading-none">{{ viewingCard.phone2 }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 已優化：稅務編號塊 (數字顏色調整為深灰色 + 移除 Mono 字體 + 與號碼完全一致) -->
+                                        <div v-if="viewingCard.companyTaxId" class="p-4 bg-[#FAF9F6] rounded-2xl border border-stone-100 flex items-center gap-4 shadow-sm">
+                                            <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#BCA38E] flex-shrink-0"><i data-lucide="hash" class="w-5 h-5"></i></div>
+                                            <div class="min-w-0">
+                                                <span class="text-[9px] text-[#8B7E66] font-black uppercase tracking-widest block mb-0.5">公司統編</span>
+                                                <span class="font-black text-lg text-[#4B5563] tracking-wider leading-none">{{ viewingCard.companyTaxId }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="viewingCard.taxId" class="p-4 bg-[#FAF9F6] rounded-2xl border border-stone-100 flex items-center gap-4 shadow-sm">
+                                            <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#BCA38E] flex-shrink-0"><i data-lucide="hash" class="w-5 h-5"></i></div>
+                                            <div class="min-w-0">
+                                                <span class="text-[9px] text-[#8B7E66] font-black uppercase tracking-widest block mb-0.5">統一編號</span>
+                                                <span class="font-black text-lg text-[#4B5563] tracking-wider leading-none">{{ viewingCard.taxId }}</span>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="viewingCard.email" class="p-4 bg-stone-50/30 rounded-xl border border-dashed border-stone-200 shadow-sm flex items-center gap-4">
+                                            <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#BCA38E] flex-shrink-0"><i data-lucide="mail" class="w-5 h-5"></i></div>
+                                            <div class="min-w-0">
+                                                <p class="text-[9px] text-[#BCA38E] font-black uppercase tracking-widest mb-0.5">電子郵件信箱</p>
+                                                <p class="font-medium text-sm text-[#4A4A4A] underline underline-offset-4 decoration-[#BCA38E]/50 truncate">{{ viewingCard.email }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="viewingCard.notes" class="mt-2">
+                                        <div class="p-6 bg-stone-50/50 rounded-[2rem] border-l-[8px] border-[#A68B77] shadow-sm">
+                                            <p class="text-[10px] text-[#A68B77] font-black mb-2 flex items-center gap-2 uppercase tracking-[0.2em]">
+                                                <i data-lucide="info" class="w-3.5 h-3.5"></i> 備註事項 Memo
+                                            </p>
+                                            <p class="text-sm italic text-stone-600 leading-relaxed font-medium">{{ viewingCard.notes }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- List View -->
+                    <div v-else class="space-y-6">
+                        <div class="flex items-center justify-between">
+                            <h2 class="font-black text-2xl text-[#8B7E66] flex items-center gap-3">
+                                <i :data-lucide="(hoveredRegion || selectedRegion) ? 'map' : 'grid'" class="w-6 h-6 text-[#A68B77]"></i>
+                                {{ (hoveredRegion || selectedRegion) ? `${hoveredRegion || selectedRegion} 維修廠清單` : '和峻/銘峰 全台資料庫' }}
+                                <span class="text-xs bg-[#A68B77] text-white px-3 py-1 rounded-full font-black shadow-sm ml-2">{{ filteredCards.length }} 筆</span>
+                            </h2>
+                        </div>
+                        <div class="grid grid-cols-1 gap-4">
+                            <div v-for="card in filteredCards" :key="card.id" @click="viewingCard = card" 
+                                class="bg-white p-4 rounded-[1.5rem] shadow-sm border-2 border-transparent hover:border-[#A68B77]/30 hover:shadow-xl transition-all cursor-pointer group flex items-center gap-5 relative overflow-hidden">
+                                
+                                <div v-if="card.name === PRIORITY_NAME" class="absolute top-0 left-0 bg-red-500 text-white text-[7px] font-black px-3 py-0.5 rounded-br-xl z-20 shadow-sm uppercase tracking-tighter">指定置頂</div>
+                                <div v-else-if="card.categories?.includes(TARGET_CATEGORY)" class="absolute top-0 left-0 bg-[#A68B77] text-white text-[7px] font-black px-3 py-0.5 rounded-br-xl z-20 shadow-sm uppercase tracking-tighter">官方原廠</div>
+                                
+                                <div class="w-24 h-24 flex-shrink-0 bg-stone-50 rounded-2xl overflow-hidden border border-stone-100 shadow-inner relative">
+                                    <img v-if="card.image" :src="card.image" class="w-full h-full object-cover grayscale-[0.2] group-hover:grayscale-0 group-hover:scale-110 transition-all duration-700">
+                                    <div v-else class="w-full h-full flex items-center justify-center text-stone-200"><i data-lucide="image" class="w-8 h-8 opacity-30"></i></div>
+                                </div>
+                                <div class="flex-grow min-w-0 pr-2">
+                                    <div class="flex flex-wrap gap-1.5 mb-1.5">
+                                        <span class="px-2 py-0.5 bg-[#A68B77]/10 text-[#A68B77] text-[9px] font-bold rounded-md">{{card.township}}</span>
+                                        <span v-if="card.needsAppointment" class="px-2 py-0.5 bg-orange-100 text-orange-600 text-[8px] font-black rounded-md">需預約</span>
+                                    </div>
+                                    <!-- 已優化：小名片中體現姓名與職稱 -->
+                                    <div class="flex items-baseline gap-2">
+                                        <h4 class="font-black text-xl text-[#4A4A4A] group-hover:text-[#A68B77] transition-colors truncate">{{ card.name }}</h4>
+                                        <span v-if="card.title" class="text-[11px] text-stone-400 font-bold opacity-80 whitespace-nowrap">{{ card.title }}</span>
+                                    </div>
+                                    <p class="text-[11px] text-[#BCA38E] font-bold italic truncate mt-0.5">{{ card.company || '個人名義運營' }}</p>
+                                </div>
+                                <div class="text-stone-200 group-hover:text-[#A68B77] transition-colors pr-2">
+                                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modals -->
+            <!-- Form Modal -->
+            <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all">
+                <div class="bg-white rounded-[3rem] w-full max-w-4xl shadow-[0_0_100px_rgba(0,0,0,0.2)] overflow-hidden max-h-[95vh] flex flex-col border-[12px] border-[#FAF9F6]">
+                    <div class="p-8 border-b flex justify-between items-center bg-white">
+                        <h3 class="text-2xl font-black text-[#8B7E66] flex items-center gap-3">
+                            <span class="p-2 bg-[#A68B77]/10 text-[#A68B77] rounded-xl"><i data-lucide="lock" class="w-5 h-5"></i></span>
+                            {{ isAuthModal ? '管理權限驗證' : (editingCard ? '編輯紀錄' : '建立新維修廠紀錄') }}
+                        </h3>
+                        <button @click="closeModal" class="p-2 hover:bg-stone-100 rounded-full transition-colors"><i data-lucide="x" class="w-6 h-6 text-stone-400"></i></button>
+                    </div>
+                    
+                    <div class="overflow-y-auto p-10 custom-scrollbar bg-white">
+                        <div v-if="isAuthModal" class="flex flex-col items-center gap-10 py-16">
+                            <div class="text-center space-y-2">
+                                <p class="text-2xl font-black text-[#4A4A4A]">身份識別</p>
+                                <p class="text-sm text-stone-400 font-bold uppercase tracking-widest">請輸入維護人員 3 位數通行密碼</p>
+                            </div>
+                            <input v-model="passwordInput" type="password" maxlength="3" placeholder="···" class="w-56 text-center text-5xl tracking-[1em] border-b-8 border-[#BCA38E] outline-none bg-transparent focus:border-[#A68B77] py-4 transition-all" @keyup.enter="handleVerifyPassword">
+                            <button @click="handleVerifyPassword" class="bg-[#A68B77] text-white px-16 py-4 rounded-[2rem] font-black text-lg shadow-2xl hover:bg-[#8B7E66] transition-all transform active:scale-95">授權並進入</button>
+                        </div>
+
+                        <div v-else class="space-y-10 pb-10">
+                            <div class="flex justify-center">
+                                <div class="relative group w-full max-w-md aspect-[3/2] bg-stone-50 rounded-[2.5rem] border-4 border-dashed border-[#BCA38E]/30 flex flex-col items-center justify-center overflow-hidden hover:border-[#A68B77] transition-all shadow-inner">
+                                    <img v-if="formData.image" :src="formData.image" class="w-full h-full object-contain p-4">
+                                    <div v-else class="text-center text-[#BCA38E]/50">
+                                        <i data-lucide="camera" class="mx-auto mb-3 w-12 h-12 opacity-30"></i>
+                                        <p class="text-[11px] font-black tracking-widest uppercase">點擊或拖曳上傳名片/廠房影像</p>
+                                    </div>
+                                    <input type="file" accept="image/*" @change="handleImageUpload" class="absolute inset-0 opacity-0 cursor-pointer">
+                                    <button v-if="formData.image" @click="formData.image = null" class="absolute top-6 right-6 bg-[#A68B77] text-white p-2.5 rounded-full shadow-2xl z-10 hover:bg-red-500 transition-all transform hover:scale-110">
+                                        <i data-lucide="x" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="user" class="w-3.5 h-3.5"></i> 負責人姓名 *
+                                    </label>
+                                    <input v-model="formData.name" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] focus:bg-white transition-all bg-stone-50/50 font-bold">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="building" class="w-3.5 h-3.5"></i> 單位/公司全銜
+                                    </label>
+                                    <input v-model="formData.company" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] focus:bg-white transition-all bg-stone-50/50 font-bold">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="bookmark" class="w-3.5 h-3.5"></i> 內部職稱
+                                    </label>
+                                    <input v-model="formData.title" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] focus:bg-white transition-all bg-stone-50/50 font-bold" placeholder="例如：廠長">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="clipboard-list" class="w-3.5 h-3.5"></i> 公司統一編號
+                                    </label>
+                                    <input v-model="formData.companyTaxId" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] transition-all bg-stone-50/50 font-bold">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="phone" class="w-3.5 h-3.5"></i> 聯絡電話 1
+                                    </label>
+                                    <input v-model="formData.phone" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] transition-all bg-stone-50/50 font-bold" placeholder="0X-XXXXXXXX">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="smartphone" class="w-3.5 h-3.5"></i> 行動手機號碼
+                                    </label>
+                                    <input v-model="formData.mobile" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] transition-all bg-stone-50/50 font-bold">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="printer" class="w-3.5 h-3.5"></i> 公司傳真
+                                    </label>
+                                    <input v-model="formData.fax" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] transition-all bg-stone-50/50">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="mail" class="w-3.5 h-3.5"></i> 電子郵件 (Email)
+                                    </label>
+                                    <input v-model="formData.email" type="email" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] transition-all bg-stone-50/50">
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="map" class="w-3.5 h-3.5"></i> 所屬縣市
+                                    </label>
+                                    <select v-model="formData.city" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] bg-stone-50/50 font-bold">
+                                        <option v-for="(towns, city) in TAIWAN_DATA" :key="city" :value="city">{{city}}</option>
+                                    </select>
+                                </div>
+                                <div class="space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> 行政鄉鎮
+                                    </label>
+                                    <select v-model="formData.township" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] bg-stone-50/50 font-bold">
+                                        <option v-for="t in TAIWAN_DATA[formData.city]" :key="t" :value="t">{{t}}</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-1 md:col-span-2 space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="navigation" class="w-3.5 h-3.5"></i> 詳細門牌地址
+                                    </label>
+                                    <input v-model="formData.address" type="text" class="w-full border-2 border-stone-100 rounded-2xl px-5 py-3.5 outline-none focus:border-[#A68B77] transition-all bg-stone-50/50 font-bold" placeholder="路名 / 段 / 巷 / 弄 / 號碼">
+                                </div>
+                                <div class="col-span-1 md:col-span-2">
+                                    <label class="flex items-center gap-4 cursor-pointer group bg-[#FAF9F6] px-8 py-5 rounded-3xl border-2 border-transparent hover:border-[#BCA38E] transition-all shadow-inner">
+                                        <input type="checkbox" v-model="formData.needsAppointment" class="hidden">
+                                        <div :class="['w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all', formData.needsAppointment ? 'bg-orange-500 border-orange-500 shadow-lg' : 'border-stone-200 bg-white']">
+                                            <i v-if="formData.needsAppointment" data-lucide="check" class="text-white w-5 h-5"></i>
+                                        </div>
+                                        <span class="text-base font-black text-[#8B7E66] uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <i data-lucide="clock" class="w-5 h-5 opacity-60"></i> 前往維修需事先電話預約
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="col-span-1 md:col-span-2 space-y-3">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="tag" class="w-3.5 h-3.5"></i> 維修分類標籤
+                                    </label>
+                                    <div class="flex flex-wrap gap-3">
+                                        <button v-for="c in categoryList" :key="c" @click="toggleCategory(c)" 
+                                            :class="['text-xs px-6 py-2.5 rounded-full border-2 font-black transition-all transform active:scale-90', 
+                                            formData.categories.includes(c) ? 'bg-[#A68B77] text-white border-[#A68B77] shadow-lg' : 'bg-white text-stone-400 border-stone-100']">
+                                            {{c}}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-span-1 md:col-span-2 space-y-1.5">
+                                    <label class="text-[11px] font-black text-[#8B7E66] ml-2 flex items-center gap-2 uppercase tracking-widest">
+                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> 備註事項 Memo
+                                    </label>
+                                    <textarea v-model="formData.notes" class="w-full border-2 border-stone-100 rounded-3xl px-6 py-5 outline-none h-40 resize-none focus:border-[#A68B77] transition-all bg-stone-50/50 font-medium" placeholder="請記錄：營業時間、主要維修強項、公休日或特殊技術等資訊..."></textarea>
+                                </div>
+                            </div>
+                            <div class="pt-10">
+                                <button @click="handleSubmit" class="w-full bg-[#A68B77] text-white py-6 rounded-[2.5rem] font-black text-xl shadow-2xl hover:bg-[#8B7E66] transition-all transform active:scale-[0.98] tracking-widest">
+                                    確認儲存並同步雲端資料
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full List Modal -->
+            <div v-if="isFullListModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div class="bg-white rounded-[3.5rem] w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border-[12px] border-[#FAF9F6]">
+                    <div class="p-8 border-b flex justify-between items-center bg-white">
+                        <h3 class="text-2xl font-black text-[#8B7E66] flex items-center gap-3"><i data-lucide="list" class="w-6 h-6"></i> 全台據點聯絡名冊</h3>
+                        <button @click="isFullListModalOpen = false"><i data-lucide="x" class="w-7 h-7 text-stone-300 hover:text-stone-500"></i></button>
+                    </div>
+                    <div class="flex-grow overflow-y-auto p-10 custom-scrollbar bg-white">
+                        <div v-for="(cityCards, city) in groupedCardsByCity" :key="city" class="mb-12">
+                            <h4 class="font-black text-[#A68B77] border-l-8 border-[#A68B77] pl-5 mb-6 text-xl tracking-tighter">{{ city }}</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                                <div v-for="card in cityCards" :key="card.id" @click="viewingCard = card; isFullListModalOpen = false" 
+                                    class="p-5 bg-stone-50 rounded-[1.8rem] hover:bg-[#A68B77]/10 cursor-pointer transition-all border border-stone-100 group shadow-sm relative overflow-hidden">
+                                    <div v-if="card.name === PRIORITY_NAME" class="absolute top-0 right-0 bg-red-500 text-white text-[7px] font-black px-2 py-0.5 rounded-bl-lg shadow-sm">指定置頂</div>
+                                    <div v-else-if="card.categories?.includes(TARGET_CATEGORY)" class="absolute top-0 right-0 bg-[#A68B77] text-white text-[7px] font-black px-2 py-0.5 rounded-bl-lg">原廠直營</div>
+                                    <p class="text-[10px] text-[#A68B77] font-black uppercase mb-1">{{card.township}}</p>
+                                    <!-- 已優化：清單中體現姓名與職稱 -->
+                                    <div class="flex items-baseline gap-1.5">
+                                        <p class="font-black text-lg text-[#4A4A4A] truncate group-hover:text-[#A68B77] transition-colors">{{card.name}}</p>
+                                        <span v-if="card.title" class="text-[9px] text-stone-400 font-bold opacity-80">{{card.title}}</span>
+                                    </div>
+                                    <p class="text-[10px] text-stone-400 font-bold truncate mt-1">{{card.company || '---'}}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="mt-12 py-16 text-center text-stone-300 font-black text-[10px] tracking-[0.5em] uppercase border-t border-stone-100">
+                和峻/銘峰維修廠管理系統 &copy; 2026 OFFICIAL DATABASE
+            </footer>
+        </div>
+    </div>
+</body>
+</html>
