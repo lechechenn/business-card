@@ -346,11 +346,12 @@
                     <div class="relative flex-grow md:w-80 w-full">
                         <input v-model="searchTerm" type="text" placeholder="搜尋維修廠..." class="pl-4 pr-4 py-3 rounded-full border-2 border-[#BCA38E]/20 bg-white/60 focus:bg-white outline-none w-full text-sm shadow-sm transition-all focus:border-[#A68B77]">
                     </div>
+                    
                     <div class="flex gap-2 items-center flex-shrink-0">
-                        <button @click="fetchData()" class="bg-white border-2 border-[#BCA38E]/30 text-[#A68B77] w-14 h-14 rounded-full flex items-center justify-center shadow-sm hover:bg-stone-50 transform active:scale-90 group">
+                        <button @click="fetchData()" class="bg-white border-2 border-[#BCA38E]/30 text-[#A68B77] w-14 h-14 rounded-full flex items-center justify-center shadow-sm hover:bg-stone-50 transform active:scale-90 group" title="雲端同步重整">
                             <i data-lucide="refresh-cw" :class="['w-6 h-6', syncStatus === 'syncing' ? 'spin-anim' : 'group-hover:rotate-180 transition-transform duration-500']"></i>
                         </button>
-                        <button @click="performExport()" class="bg-white border-2 border-[#BCA38E]/30 text-[#8B7E66] px-5 py-3 rounded-full font-bold text-sm shadow-sm hover:bg-stone-50 flex items-center gap-2">
+                        <button @click="performExport()" class="bg-white border-2 border-[#BCA38E]/30 text-[#8B7E66] px-5 py-3 rounded-full font-bold text-sm shadow-sm hover:bg-stone-50 transition-all flex items-center gap-2">
                             <i data-lucide="file-spreadsheet" class="w-5 h-5"></i> <span class="hidden sm:inline">備份匯出</span>
                         </button>
                         <button @click="isFullListModalOpen = true" class="bg-white border-2 border-[#BCA38E]/30 text-[#8B7E66] px-5 py-3 rounded-full font-bold text-sm shadow-sm hover:bg-stone-50 flex items-center gap-2">
@@ -404,18 +405,16 @@
                 <!-- List / Detail Area -->
                 <div class="lg:col-span-7 xl:col-span-8">
                     
-                    <!-- Detail View (修正後版面：功能按鈕已恢復) -->
+                    <!-- Detail View (修正後版面：手機號碼移動到職稱下方) -->
                     <div v-if="viewingCard" class="bg-white rounded-[3rem] shadow-2xl border border-stone-100 overflow-hidden detail-card">
                         <div class="p-5 md:p-6 bg-white border-b border-stone-50 flex justify-between items-center">
                             <button @click="viewingCard = null" class="text-base font-bold text-[#8B7E66] flex items-center gap-2 hover:text-[#A68B77] group px-5 py-2.5 bg-[#FAF9F6] rounded-full transition-all">
-                                <i data-lucide="arrow-left" class="w-4 h-4"></i> 返回
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i> 返回清單
                             </button>
                             <div class="flex gap-3">
-                                <!-- 已修復：編輯按鈕 -->
                                 <button @click="openModal(viewingCard)" class="text-[#BCA38E] hover:text-[#8B7E66] transition p-3 bg-[#FAF9F6] rounded-full shadow-sm">
                                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                                 </button>
-                                <!-- 已修復：刪除按鈕 -->
                                 <button @click="handleDeleteCard(viewingCard.id)" class="text-red-300 hover:text-red-500 transition p-3 bg-[#FAF9F6] rounded-full shadow-sm">
                                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                                 </button>
@@ -424,8 +423,10 @@
                         
                         <div class="p-8 md:p-12">
                             <div class="flex flex-col gap-10">
+                                <!-- 上半層：互動照片 + 姓名職稱 + 手機號碼 (左右並列) -->
                                 <div class="flex flex-col md:flex-row gap-10 md:gap-14 items-center md:items-start">
-                                    <!-- 互動式預覽照片 -->
+                                    
+                                    <!-- 互動式照片 -->
                                     <div class="w-full md:w-5/12 xl:w-1/3 relative group">
                                         <div v-if="viewingCard.image" 
                                              class="rounded-[2.5rem] shadow-2xl border-8 border-white bg-white overflow-hidden cursor-zoom-in relative"
@@ -434,6 +435,9 @@
                                             <img :src="viewingCard.image" 
                                                  class="w-full h-auto rounded-2xl transition-transform duration-500 ease-out origin-center hover:scale-[2.5]"
                                                  :style="{ transformOrigin: imageOrigin }">
+                                            <div class="absolute bottom-4 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <span class="bg-black/50 text-white text-[10px] px-3 py-1 rounded-full backdrop-blur-sm font-bold">游標移動探索 / 點擊展開</span>
+                                            </div>
                                         </div>
                                         <div v-else class="aspect-[3/2] w-full bg-stone-50 rounded-[2.5rem] flex flex-col items-center justify-center text-stone-200 border border-stone-100">
                                             <i data-lucide="image" class="w-16 h-16 mb-4 opacity-50"></i>
@@ -441,7 +445,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- 文字核心資訊 -->
+                                    <!-- 文字資訊 -->
                                     <div class="w-full md:w-7/12 xl:w-2/3 space-y-6 text-center md:text-left">
                                         <div>
                                             <div class="flex flex-wrap justify-center md:justify-start gap-2.5 mb-4">
@@ -450,24 +454,38 @@
                                             </div>
                                             <h3 class="text-5xl md:text-6xl font-black text-[#4A4A4A] tracking-tighter mb-4 leading-tight">{{ viewingCard.name }}</h3>
                                             <div class="space-y-4">
+                                                <!-- 公司名稱 -->
                                                 <div class="flex items-start justify-center md:justify-start gap-3">
-                                                    <i data-lucide="building-2" class="w-6 h-6 text-[#BCA38E] mt-1 flex-shrink-0"></i>
+                                                    <i data-lucide="building-2" class="w-6 h-6 text-[#BCA38E] mt-0.5 flex-shrink-0"></i>
                                                     <p class="text-lg md:text-xl font-bold text-[#8B7E66] leading-snug break-words max-w-full uppercase">
                                                         {{ viewingCard.company || '個人經營模式' }}
                                                     </p>
                                                 </div>
+                                                <!-- 職稱 -->
                                                 <div v-if="viewingCard.title" class="flex items-center justify-center md:justify-start gap-3 text-stone-300">
                                                     <span>|</span>
                                                     <i data-lucide="briefcase" class="w-5 h-5 opacity-50"></i>
                                                     <span class="text-xl font-bold text-stone-400">{{viewingCard.title}}</span>
+                                                </div>
+                                                
+                                                <!-- 已移動：手機號碼 (顯示在職稱下方) -->
+                                                <div v-if="viewingCard.mobile" class="mt-4 p-4 bg-stone-50/50 rounded-2xl border border-stone-100 inline-flex items-center gap-4 group hover:bg-white transition-all shadow-sm">
+                                                    <div class="bg-white p-2.5 rounded-xl border border-stone-100 text-[#A68B77] flex-shrink-0 shadow-inner">
+                                                        <i data-lucide="smartphone" class="w-6 h-6"></i>
+                                                    </div>
+                                                    <div class="text-left">
+                                                        <p class="text-[9px] text-[#A68B77] font-black uppercase tracking-widest mb-0.5">手機號碼 (Mobile)</p>
+                                                        <p class="font-black text-2xl md:text-3xl text-[#4B5563] tracking-widest leading-none">{{ viewingCard.mobile }}</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- 下半層：滿版資訊列表 -->
+                                <!-- 下半層：滿版資訊列表 (公司地址與剩餘聯絡資訊 - 均一列排列) -->
                                 <div class="space-y-5 pt-8 border-t border-stone-100">
+                                    <!-- 公司地址 -->
                                     <div class="p-6 bg-[#FAF9F6] rounded-[2.5rem] border border-stone-100 flex items-center gap-6 shadow-sm group hover:bg-white transition-all w-full text-left">
                                         <div class="bg-white p-4 rounded-2xl text-[#A68B77] border border-stone-100 shadow-sm flex-shrink-0"><i data-lucide="map-pin" class="w-7 h-7"></i></div>
                                         <div class="flex-grow min-w-0">
@@ -479,16 +497,16 @@
                                         </button>
                                     </div>
 
+                                    <!-- 聯絡與稅務資訊 (排除已移出的手機號碼) -->
                                     <div v-for="(val, label) in { 
                                         '公司電話 1': viewingCard.phone, 
-                                        '手機號碼': viewingCard.mobile, 
                                         '傳真號碼': viewingCard.fax, 
                                         '備用電話 2': viewingCard.phone2, 
                                         '公司統編': viewingCard.companyTaxId, 
                                         '統一編號': viewingCard.taxId 
                                     }" :key="label" v-show="val" class="p-6 bg-[#FAF9F6] rounded-[2.5rem] border border-stone-100 flex items-center gap-6 shadow-sm w-full text-left">
                                         <div class="bg-white p-3 rounded-2xl border border-stone-100 text-[#BCA38E] flex-shrink-0">
-                                            <i :data-lucide="label.includes('手機') ? 'smartphone' : (label.includes('傳真') ? 'printer' : (label.includes('編') ? 'hash' : 'phone'))" class="w-7 h-7"></i>
+                                            <i :data-lucide="label.includes('傳真') ? 'printer' : (label.includes('編') ? 'hash' : 'phone')" class="w-7 h-7"></i>
                                         </div>
                                         <div class="min-w-0 flex-grow">
                                             <p class="text-[10px] text-[#8B7E66] font-black uppercase tracking-widest mb-1.5">{{label}}</p>
@@ -496,6 +514,7 @@
                                         </div>
                                     </div>
 
+                                    <!-- 備註事項 -->
                                     <div v-if="viewingCard.notes" class="mt-6">
                                         <div class="p-8 md:p-10 bg-stone-50/50 rounded-[3rem] border-l-[12px] border-[#A68B77] shadow-sm">
                                             <p class="text-[11px] text-[#A68B77] font-black mb-4 flex items-center gap-3 uppercase tracking-[0.4em]">
@@ -504,12 +523,13 @@
                                             <p class="text-lg italic text-stone-600 leading-relaxed font-medium whitespace-pre-line text-left">{{ viewingCard.notes }}</p>
                                         </div>
                                     </div>
+                                    <div class="mt-6 text-center lg:text-left text-xs text-[#A68B77] font-bold italic tracking-widest uppercase opacity-60">Database Updated: {{viewingCard.date || '---'}}</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- List View (預設全台列表) -->
+                    <!-- List View -->
                     <div v-else class="space-y-8">
                         <div class="flex items-center justify-between px-2">
                             <h2 class="font-black text-2xl text-[#8B7E66] flex items-center gap-4">
@@ -542,7 +562,7 @@
                 </div>
             </div>
 
-            <!-- Lightbox Modal (照片預覽) -->
+            <!-- Lightbox Modal -->
             <div v-if="isImageZoomModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl transition-all" @click="isImageZoomModalOpen = false">
                 <div class="max-w-6xl max-h-[85vh] relative flex flex-col items-center" @click.stop>
                     <div class="relative">
@@ -559,7 +579,7 @@
                 </div>
             </div>
 
-            <!-- Auth/Form Modal (核心修復：權限驗證視窗) -->
+            <!-- Auth/Form Modal -->
             <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-2 md:p-4 bg-black/60 backdrop-blur-md">
                 <div class="bg-white rounded-[2rem] md:rounded-[3rem] w-full max-w-4xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col border-4 md:border-[12px] border-[#FAF9F6]">
                     <div class="p-6 md:p-8 border-b flex justify-between items-center bg-white">
@@ -577,7 +597,6 @@
                             <button @click="handleVerifyPassword" class="bg-[#A68B77] text-white px-12 md:px-16 py-4 rounded-[2rem] font-black text-lg shadow-2xl hover:bg-[#8B7E66] transform active:scale-95">授權進入</button>
                         </div>
                         <div v-else class="space-y-10 pb-10">
-                            <!-- 資料表單內容 -->
                             <div class="flex justify-center">
                                 <div class="relative group w-full max-w-md aspect-[3/2] bg-stone-50 rounded-[1.5rem] md:rounded-[2.5rem] border-4 border-dashed border-[#BCA38E]/30 flex flex-col items-center justify-center overflow-hidden hover:border-[#A68B77] transition-all shadow-inner text-center">
                                     <img v-if="formData.image" :src="formData.image" class="w-full h-full object-contain p-4">
